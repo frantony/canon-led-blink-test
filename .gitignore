@@ -1,0 +1,6 @@
+*.BIN
+*.bin
+*.elf
+*.o
+*.dump
+tools/dancingbits
