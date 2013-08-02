@@ -1,6 +1,7 @@
 CROSS_COMPILE=/home/antony/repos/ML/gcc-4.6.0/bin/arm-elf-
 
 CC=$(CROSS_COMPILE)gcc
+LD=$(CC)
 OBJCOPY=$(CROSS_COMPILE)objcopy
 OBJDUMP=$(CROSS_COMPILE)objdump
 STRIP=$(CROSS_COMPILE)strip
@@ -8,9 +9,20 @@ NM=$(CROSS_COMPILE)nm
 AR=$(CROSS_COMPILE)ar
 RANLIB=$(CROSS_COMPILE)ranlib
 SIZE=$(CROSS_COMPILE)size
-CFLAGS=-fno-inline -Os -fno-strict-aliasing -fno-schedule-insns2 -mtune=arm946e-s -mthumb-interwork -I../../include -I../../core -I../../modules -I../../platform/a1100 -I. -DCORE_FILE="../../core/main.bin" -DRESET_FILE="./resetcode/main.bin" -DPLATFORM="a1100" -DPLATFORMSUB="100c" -DPLATFORMID=12739 -DCAMERA_a1100=1 -DVER_CHDK -DHDK_VERSION="CHDK" -DBUILD_NUMBER="1.2.0" -DBUILD_SVNREV="0" -Wall -Wno-unused -Wno-format -DOPT_GAMES -DOPT_CURVES -DOPT_EDGEOVERLAY -DOPT_DEBUGGING -DOPT_PTP -nostdinc
 
-LD=$(CC)
+# common flags
+CFLAGS=-nostdinc -fno-strict-aliasing
+
+# target-specific
+CFLAGS+=-mtune=arm946e-s -mthumb-interwork
+
+# optimizations
+CFLAGS+=-O2 -fno-schedule-insns2
+
+# warnings
+CFLAGS+=-W -Wall
+
+LDFLAGS=-nostdlib -Wl,--allow-shlib-undefined -Wl,--no-define-common,-EL,-T,link-boot.ld -Wl,-N,-Ttext,0x1900
 
 
 all: DISKBOOT.BIN
@@ -21,17 +33,17 @@ NEED_ENCODED_DISKBOOT=2
 DEVNULL=/dev/null
 
 DISKBOOT.BIN: main.bin $(ENCODE_DISKBOOT)
-	dd if=/dev/zero bs=1k count=128 >> main.bin 2> $(DEVNULL)
+	dd if=/dev/zero bs=1k count=128 >> $< 2> $(DEVNULL)
 	$(ENCODE_DISKBOOT) $< $@ $(NEED_ENCODED_DISKBOOT)
 
 entry.o: entry.S
-	$(CC) $(CFLAGS) -c -o entry.o entry.S
+	$(CC) $(CFLAGS) -c -o $@ $^
 
 main.o: main.c
-	$(CC) $(CFLAGS) -c -o main.o main.c
+	$(CC) $(CFLAGS) -c -o $@ $^
 
 main.elf: main.o entry.o
-	$(LD) -o main.elf entry.o main.o -nostdlib -Wl,--allow-shlib-undefined -Wl,--no-define-common,-EL,-T,link-boot.ld -Wl,-N,-Ttext,0x1900
+	$(LD) $(LDFLAGS) -o $@ $^
 
 main.bin: main.elf
 	@echo $< \-\> $@
