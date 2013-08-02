@@ -15,10 +15,12 @@
         .text
         .globl _start
 
+		.org 0
 _start:
         ldr   r1, =UART_TX
         ldr   r2, =hello_world_message
 
+		.org 0x100
 loop:   ldrb  r0, [r2]
         cmp   r0, #0
         beq   forever

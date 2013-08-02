@@ -22,8 +22,9 @@ CFLAGS+=-O2 -fno-schedule-insns2
 # warnings
 CFLAGS+=-W -Wall
 
-LDFLAGS=-nostdlib -Wl,--allow-shlib-undefined -Wl,--no-define-common,-EL,-T,link-boot.ld -Wl,-N,-Ttext,0x1900
+CFLAGS+=-Iinclude
 
+LDFLAGS=-nostdlib -Wl,--allow-shlib-undefined -Wl,--no-define-common,-EL,-T,link-boot.ld -Wl,-N
 
 all: DISKBOOT.BIN
 
@@ -32,27 +33,54 @@ NEED_ENCODED_DISKBOOT=2
 
 DEVNULL=/dev/null
 
-DISKBOOT.BIN: main.bin $(ENCODE_DISKBOOT)
+DISKBOOT.BIN: a1100_main.bin $(ENCODE_DISKBOOT)
 	dd if=/dev/zero bs=1k count=128 >> $< 2> $(DEVNULL)
 	$(ENCODE_DISKBOOT) $< $@ $(NEED_ENCODED_DISKBOOT)
 
-entry.o: entry.S
+a1100_entry.o: a1100_entry.S
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-main.o: main.c
+a1100_main.o: a1100_main.c
 	$(CC) $(CFLAGS) -c -o $@ $^
 
-main.elf: main.o entry.o
-	$(LD) $(LDFLAGS) -o $@ $^
+a1100_main: a1100_main.o a1100_entry.o
+	$(LD) $(LDFLAGS) -Wl,-Ttext,0x1900 -o $@ $^
 
-main.bin: main.elf
-	@echo $< \-\> $@
-	$(OBJDUMP) -z -d main.elf > main.dump
-	$(OBJCOPY) -O binary main.elf main.bin
+a1100_main.bin: a1100_main
+	$(OBJDUMP) -z -d $< > $<.dump
+	$(OBJCOPY) -O binary $< $@
+
+.PHONY: a1100_clean
+a1100_clean:
+	rm -f DISKBOOT.BIN
+	rm -f a1100_main.bin a1100_main a1100_main.dump
+	rm -f a1100_main.o a1100_entry.o
+
+eos_600d_entry.o: eos_600d_entry.S
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+eos_600d_main.o: eos_600d_main.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+eos_600d_main: eos_600d_main.o eos_600d_entry.o
+	$(LD) $(LDFLAGS) -Wl,-Ttext,0x00800000 -o $@ $^
+
+eos_600d_main.bin: eos_600d_main
+	$(OBJDUMP) -z -d $< > $<.dump
+	$(OBJCOPY) -O binary $< $@
+
+autoexec.bin: eos_600d_main.bin
+	cp $< $@
+	dd if=/dev/zero bs=1k count=400 >> $@
+
+.PHONY: eos_600d_clean
+eos_600d_clean:
+	rm -f autoexec.bin
+	rm -f eos_600d_main.bin eos_600d_main eos_600d_main.dump
+	rm -f eos_600d_main.o eos_600d_entry.o
 
 .PHONY: clean
-clean:
-	rm -f *.BIN *.bin *.elf *.o *.dump
+clean: a1100_clean eos_600d_clean
 	make -C tools clean
 
 $(ENCODE_DISKBOOT):
