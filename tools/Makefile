@@ -1,4 +1,4 @@
-all: dancingbits
+all: dancingbits pakwif
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -6,6 +6,9 @@ all: dancingbits
 dancingbits: dancingbits.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+pakwif: pakwif.o
+	$(CC) $(CFLAGS) -o $@ $^
+
 .PHONY: clean
 clean:
-	rm -f *.o dancingbits
+	rm -f *.o dancingbits pakwif
