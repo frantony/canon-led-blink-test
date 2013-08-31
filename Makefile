@@ -26,12 +26,40 @@ CFLAGS+=-Iinclude
 
 LDFLAGS=-nostdlib -Wl,--allow-shlib-undefined -Wl,--no-define-common,-EL,-T,link-boot.ld -Wl,-N
 
-all: DISKBOOT.BIN
+all: PS.FIR
 
 ENCODE_DISKBOOT=tools/dancingbits
 NEED_ENCODED_DISKBOOT=2
 
 DEVNULL=/dev/null
+
+DISKBOOT.BIN: a460_main.bin
+
+A460_PLATFORMID=12617
+
+PAKWIF=tools/pakwif
+
+PS.FIR: a460_main.bin $(PAKWIF)
+	$(PAKWIF) $@ $^ $(A460_PLATFORMID) 0x01000101
+
+a460_entry.o: a460_entry.S
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+a460_main.o: a460_main.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+
+a460_main: a460_main.o a460_entry.o
+	$(LD) $(LDFLAGS) -Wl,-Ttext,0x1900 -o $@ $^
+
+a460_main.bin: a460_main
+	$(OBJDUMP) -z -d $< > $<.dump
+	$(OBJCOPY) -O binary $< $@
+
+.PHONY: a460_clean
+a460_clean:
+	rm -f DISKBOOT.BIN
+	rm -f a460_main.bin a460_main a460_main.dump
+	rm -f a460_main.o a460_entry.o
 
 DISKBOOT.BIN: a1100_main.bin $(ENCODE_DISKBOOT)
 	dd if=/dev/zero bs=1k count=128 >> $< 2> $(DEVNULL)
@@ -80,8 +108,11 @@ eos_600d_clean:
 	rm -f eos_600d_main.o eos_600d_entry.o
 
 .PHONY: clean
-clean: a1100_clean eos_600d_clean
+clean: a460_clean a1100_clean eos_600d_clean
 	make -C tools clean
 
 $(ENCODE_DISKBOOT):
+	make -C tools
+
+$(PAKWIF):
 	make -C tools
